@@ -90,7 +90,9 @@ bool ApfsContainer::Init()
 
 	tmp.resize(m_nx.nx_block_size);
 
-	for (paddr = m_nx.nx_xp_desc_base; paddr < (m_nx.nx_xp_desc_base + m_nx.nx_xp_desc_blocks); paddr++)
+	uint32_t best_len = m_nx.nx_xp_desc_len;
+
+	for (paddr = m_nx.nx_xp_desc_base; paddr < (m_nx.nx_xp_desc_base + (m_nx.nx_xp_desc_blocks & 0x7FFFFFFF)); paddr++)
 	{
 		if (!ReadBlocks(tmp.data(), paddr, 1))
 			return false;
@@ -106,13 +108,19 @@ bool ApfsContainer::Init()
 		{
 			max_xid = sb->nx_o.o_xid;
 			max_paddr = paddr;
+			best_len = sb->nx_xp_desc_len;
 		}
 	}
 
-	if (max_xid > m_nx.nx_o.o_xid)
+	// Prefer a checkpoint superblock from the descriptor ring that carries a valid
+	// checkpoint pointer (desc_len > 0). Block 0 (paddr 0) is a spare copy that on
+	// modern APFS can share the latest xid but have desc_index/desc_len == 0, which
+	// makes checkpoint-map loading impossible. Use the ring copy when block 0's
+	// pointer is empty, or when the ring is at least as recent.
+	if (best_len > 0 && (m_nx.nx_xp_desc_len == 0 || max_xid >= m_nx.nx_o.o_xid))
 	{
 		if (g_debug & Dbg_Errors)
-			std::cout << "Found more recent xid " << max_xid << " than superblock 0 contained (" << m_nx.nx_o.o_xid << ")." << std::endl;
+			std::cout << "Using ring superblock xid " << max_xid << " (block0 xid " << m_nx.nx_o.o_xid << ", block0 desc_len " << m_nx.nx_xp_desc_len << ")." << std::endl;
 
 		ReadBlocks(tmp.data(), max_paddr, 1);
 
@@ -126,7 +134,7 @@ bool ApfsContainer::Init()
 		return false;
 	}
 
-	if (!m_cpm.Init(m_nx.nx_xp_desc_base + m_nx.nx_xp_desc_index, m_nx.nx_xp_desc_len - 1))
+	if (!m_cpm.Init(m_nx.nx_xp_desc_base, m_nx.nx_xp_desc_blocks, m_nx.nx_xp_desc_index, m_nx.nx_xp_desc_len))
 	{
 		std::cerr << "Failed to load checkpoint map" << std::endl;
 		return false;
