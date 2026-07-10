@@ -14,7 +14,7 @@ public:
 	CheckPointMap(ApfsContainer &container);
 	virtual ~CheckPointMap();
 
-	bool Init(oid_t root_oid, uint32_t blk_count);
+	bool Init(paddr_t desc_base, uint32_t desc_blocks, uint32_t desc_index, uint32_t desc_len);
 	bool Lookup(omap_res_t & res, oid_t oid, xid_t xid) override;
 
 	void dump(BlockDumper &bd);
