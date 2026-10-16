@@ -1,4 +1,7 @@
 # About
+Update 2026-10: 
+the code is still working, but for a better user experience one should consider https://github.com/hashcat/hashcat/blob/master/tools/apfs2hashcat.py
+
 
 The goal of this fork is to make it possible to extract the hashes of an Apple FileSystem (APFS) which is encrypted with Filevault.
 Hashcat can crack these hashes with mode: `-m 18300`
